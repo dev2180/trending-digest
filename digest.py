@@ -194,8 +194,8 @@ def main():
             print(text_body)
             note = "no email sent"
         else:
-            note = f"sent to {send_email(subject, html_body, text_body)}"
-            print(f"Email {note}")
+            print(f"Email sent to {send_email(subject, html_body, text_body)}")
+            note = "email sent"  # no address: logs/ is committed to a public repo
             run_log.mark_sent()
 
         print(f"History: {run_log.write_history(repos, since, mode, model)}")
