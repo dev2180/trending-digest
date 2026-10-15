@@ -1,0 +1,139 @@
+"""Editorial email template. Tables + inline styles only, so Gmail, Outlook and Apple Mail all keep the layout.
+Web fonts load in Apple Mail / iOS; Gmail falls back to Georgia / Helvetica / Menlo, which is designed for."""
+import html
+from datetime import datetime, timezone
+
+INK, PAPER, LIME, MUTED, LINE = "#111111", "#F4F1EA", "#C6FF3D", "#6E6A62", "#DCD6C8"
+SERIF = "'Instrument Serif',Georgia,'Times New Roman',serif"
+SANS = "Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif"
+MONO = "'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace"
+
+
+def _split(name):
+    owner, _, repo = name.partition("/")
+    return html.escape(owner), html.escape(repo)
+
+
+def _pill(text, fg, border):
+    if not text:
+        return ""
+    return (f'<span style="display:inline-block;font:600 10px/1 {MONO};letter-spacing:1px;text-transform:uppercase;'
+            f'color:{fg};border:1px solid {border};border-radius:99px;padding:5px 9px">{html.escape(text)}</span>')
+
+
+def _bar(r, top, track, fill):
+    pct = max(4, round(100 * (r["gained_n"] / top) ** 0.5)) if top else 4  # sqrt so small risers stay visible
+    return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="padding-right:12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="{track}" style="background:{track};border-radius:3px"><tr>
+<td width="{pct}%" height="6" bgcolor="{fill}" style="background:{fill};border-radius:3px;font-size:0;line-height:0">&nbsp;</td><td style="font-size:0;line-height:0">&nbsp;</td></tr></table></td>
+<td width="1" style="white-space:nowrap;font:600 11px/1 {MONO};color:{fill}">+{r['gained_n']:,}</td></tr></table>"""
+
+
+def _meta(r, color):
+    dot = (f'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;'
+           f'background:{r.get("lang_color", "#8b8b8b")};vertical-align:middle"></span>&nbsp;')
+    parts = [dot + html.escape(r["language"])] if r["language"] else []
+    parts += [f"&#9733;&nbsp;{r['stars']:,}", f"forks&nbsp;{r['forks']:,}"]
+    return f'<div style="font:500 12px/1.5 {MONO};color:{color}">{"&nbsp;&nbsp;&middot;&nbsp;&nbsp;".join(parts)}</div>'
+
+
+def _row(i, r, top):
+    o, n = _split(r["name"])
+    return f"""
+<tr><td class="px" style="padding:30px 40px;border-top:1px solid {LINE}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td class="rank" width="78" valign="top" style="font:400 52px/0.9 {SERIF};color:{INK};letter-spacing:-2px">{i:02d}</td>
+<td valign="top">
+  <a href="{r['url']}" style="text-decoration:none;color:{INK}"><span style="font:500 13px/1.3 {MONO};color:{MUTED}">{o}&thinsp;/</span><br>
+  <span style="font:700 21px/1.25 {SANS};color:{INK};letter-spacing:-0.4px">{n}</span></a>
+  {'<div style="height:10px;line-height:10px">&nbsp;</div>' + _pill(r.get('category'), MUTED, LINE) if r.get('category') else ''}
+  <p style="margin:12px 0 14px;font:400 15px/1.6 {SANS};color:#2A2824">{html.escape(r['eli5'])}</p>
+  {_meta(r, MUTED)}
+  <div style="height:12px;line-height:12px">&nbsp;</div>{_bar(r, top, "#E6E0D2", INK)}
+</td></tr></table>
+</td></tr>"""
+
+
+def _stat(value, label, color, last=False):
+    pad = "18px 0 0 0" if last else "18px 12px 0 0"
+    return (f'<td class="stat" width="33%" valign="top" style="padding:{pad}">'
+            f'<div style="font:400 32px/1 {SERIF};color:{color}">{value}</div>'
+            f'<div style="font:500 10px/1.4 {MONO};letter-spacing:1.5px;color:#8A8A8A;margin-top:6px">{label}</div></td>')
+
+
+def render_html(repos, since):
+    now = datetime.now(timezone.utc)
+    period = {"daily": "today", "weekly": "this week", "monthly": "this month"}.get(since, "today")
+    top = max((r["gained_n"] for r in repos), default=0)
+    total = sum(r["gained_n"] for r in repos)
+    langs = [r["language"] for r in repos if r["language"]]
+    lead_lang = max(set(langs), key=langs.count) if langs else "Mixed"
+    lead = repos[0]
+    lo, lr = _split(lead["name"])
+    rows = "".join(_row(i, r, top) for i, r in enumerate(repos[1:], 2))
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<title>The Trending Diff</title>
+<style>
+  a {{ color: inherit; }}
+  @media (max-width: 620px) {{
+    .px {{ padding-left: 22px !important; padding-right: 22px !important; }}
+    .hl {{ font-size: 50px !important; }}
+    .lead-n {{ font-size: 88px !important; }}
+    .rank {{ width: 56px !important; font-size: 40px !important; }}
+    .tb {{ font-size: 9px !important; letter-spacing: 1px !important; }}
+    .hide-sm {{ display: none !important; }}
+    .stat {{ display: block !important; width: 100% !important; padding: 0 0 16px !important; }}
+  }}
+</style></head>
+<body style="margin:0;padding:0;background:{PAPER}" bgcolor="{PAPER}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">#1 {period}: {html.escape(lead['name'])}. {html.escape(lead['eli5'][:110])}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="{PAPER}" style="background:{PAPER}"><tr><td align="center" style="padding:0">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px">
+
+<tr><td class="px" bgcolor="{INK}" style="background:{INK};padding:16px 40px;border-bottom:1px solid #2A2A2A">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td class="tb" style="white-space:nowrap;font:600 11px/1 {MONO};letter-spacing:2px;color:{LIME}">&#9632;&nbsp;THE TRENDING DIFF</td>
+<td class="tb" align="right" style="white-space:nowrap;font:500 11px/1 {MONO};letter-spacing:1px;color:#8A8A8A">N&ordm;&nbsp;{now.timetuple().tm_yday:03d}<span class="hide-sm"> &middot; {now:%a}</span> &middot; {now:%d %b %Y}</td>
+</tr></table></td></tr>
+
+<tr><td class="px" bgcolor="{INK}" style="background:{INK};padding:52px 40px 44px">
+<div class="hl" style="font:400 66px/0.95 {SERIF};color:{PAPER};letter-spacing:-2px">What GitHub<br>is building<br><i style="color:{LIME}">{period}.</i></div>
+<p style="margin:22px 0 34px;font:400 16px/1.55 {SANS};color:#A8A49C;max-width:440px">The {len(repos)} hottest repos on GitHub, each explained like you're five. About three minutes, no jargon.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #2E2E2E"><tr>
+{_stat(f"+{total:,}", f"STARS {period.upper()}", LIME)}{_stat(html.escape(lead_lang), "TOP LANGUAGE", PAPER)}{_stat(f"{lead['gained_n']:,}", "STARS FOR #1", PAPER, last=True)}
+</tr></table>
+</td></tr>
+
+<tr><td class="px" bgcolor="{LIME}" style="background:{LIME};padding:40px 40px 44px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font:600 11px/1 {MONO};letter-spacing:2px;color:{INK}">TOP OF THE CHART</td>
+<td align="right">{_pill(lead.get('category'), INK, INK)}</td></tr></table>
+<div class="lead-n" style="font:400 120px/0.85 {SERIF};color:{INK};letter-spacing:-6px;margin:22px 0 10px">01</div>
+<a href="{lead['url']}" style="text-decoration:none;color:{INK}"><span style="font:500 14px/1.3 {MONO};color:#3B4A12">{lo}&thinsp;/</span><br>
+<span style="font:700 34px/1.1 {SANS};color:{INK};letter-spacing:-1px">{lr}</span></a>
+<p style="margin:18px 0 22px;font:400 23px/1.4 {SERIF};color:{INK}">{html.escape(lead['eli5'])}</p>
+{_meta(lead, "#2F3A0E")}
+<div style="height:26px;line-height:26px">&nbsp;</div>
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="{INK}" style="background:{INK};border-radius:99px">
+<a href="{lead['url']}" style="display:inline-block;padding:14px 24px;font:600 13px/1 {SANS};color:{LIME};text-decoration:none;letter-spacing:0.3px">Open the repo &nbsp;&rarr;</a>
+</td></tr></table>
+</td></tr>
+
+<tr><td class="px" style="padding:38px 40px 14px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font:600 11px/1 {MONO};letter-spacing:2px;color:{INK}">ALSO CLIMBING</td>
+<td align="right" style="font:500 11px/1 {MONO};letter-spacing:1px;color:{MUTED}">BAR = STARS {period.upper()}</td></tr></table>
+</td></tr>
+{rows}
+
+<tr><td class="px" bgcolor="{INK}" style="background:{INK};padding:44px 40px">
+<div style="font:400 40px/1 {SERIF};color:{PAPER};letter-spacing:-1px">That's the diff<i style="color:{LIME}">.</i></div>
+<p style="margin:14px 0 0;font:400 13px/1.6 {SANS};color:#8A8A8A">Sent every morning from <a href="https://github.com/trending" style="color:#C9C5BC">github.com/trending</a>. Explanations written by Groq.</p>
+</td></tr>
+
+</table></td></tr></table>
+</body></html>"""

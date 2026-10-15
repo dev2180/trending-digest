@@ -1,0 +1,38 @@
+name: Trending digest
+
+on:
+  schedule:
+    - cron: "30 2 * * *"   # 02:30 UTC = 08:00 IST, every day
+  workflow_dispatch:        # "Run workflow" button for manual tests
+    inputs:
+      dry_run:
+        description: "Dry run (no email, HTML saved as artifact)"
+        type: boolean
+        default: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t trending-digest .
+      - name: Run digest
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD/out:/app/out" \
+            -e GROQ_API_KEY -e GMAIL_ADDRESS -e GMAIL_APP_PASSWORD -e EMAIL_TO -e GITHUB_TOKEN \
+            trending-digest ${{ inputs.dry_run && '--dry-run' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: digest
+          path: out/
+          if-no-files-found: ignore

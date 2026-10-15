@@ -1,0 +1,8 @@
+# docker compose run --rm digest --dry-run   -> writes out/digest.html, no email
+# docker compose run --rm digest             -> real run, sends the email
+services:
+  digest:
+    build: .
+    env_file: .env
+    volumes:
+      - ./out:/app/out
