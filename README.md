@@ -42,6 +42,22 @@ After that it runs on its own every day. To change the time, edit the `cron` in 
 
 > GitHub turns off scheduled workflows in a repo after 60 days with no commits. If the emails stop, click "Enable workflow" in the Actions tab.
 
+## History and errors
+
+Every run commits a dated record back to this repo, authored as you, so each day shows up as a green square on your GitHub profile.
+
+```
+logs/runs.csv                          one line per run: date, time, ok/error, mode, model, top repo
+logs/history/2026/10/2026-10-15.md     that day's digest as a table plus the explanations
+logs/history/2026/10/2026-10-15.json   the same data as JSON
+logs/state.json                        last day an email went out
+errors/2026/10/2026-10-15_083012.log   stage, error and traceback for any failed run
+```
+
+A failed run still commits its error log, so the day stays green and you can see what broke. The schedule also has backup slots at 09:00, 11:00 and 14:00 IST. GitHub sometimes runs schedules late or drops them, so a later slot retries if the 08:00 run failed or never started, and it does nothing if today's email already went out.
+
+> Because this repo is private, the green squares only appear if your profile has **Private contributions** turned on. On your profile, open the "Contribution settings" dropdown above the contribution graph and tick it. The commit email in the workflow (`COMMIT_EMAIL`) must be an email on your GitHub account.
+
 ## Settings (env vars)
 
 | Var | Default | |

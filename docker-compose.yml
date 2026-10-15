@@ -1,8 +1,14 @@
 # docker compose run --rm digest --dry-run   -> writes out/digest.html, no email
 # docker compose run --rm digest             -> real run, sends the email
+# Every run also writes dated history to logs/ and failures to errors/.
 services:
   digest:
     build: .
     env_file: .env
+    environment:
+      LOG_DIR: /app/logs
+      ERROR_DIR: /app/errors
     volumes:
       - ./out:/app/out
+      - ./logs:/app/logs
+      - ./errors:/app/errors

@@ -29,6 +29,7 @@ from email.mime.text import MIMEText
 import requests
 from bs4 import BeautifulSoup
 
+import run_log
 from email_template import render_html
 
 UA = {"User-Agent": "trending-digest/1.0"}
@@ -106,7 +107,7 @@ def groq_chat(messages, api_key):
                 last = r.text
                 break  # request over this model's per-minute budget, or model retired: try the next one
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+            return r.json()["choices"][0]["message"]["content"], model
         else:
             last = "rate limited"
     raise RuntimeError(f"Groq call failed: {last}")
@@ -125,13 +126,13 @@ def explain(repos, api_key):
         'Reply as JSON: {"repos": [{"name": "...", "eli5": "...", "category": "..."}]} '
         "in the same order.\n\n" + json.dumps(items, ensure_ascii=False)
     )
-    raw = groq_chat([{"role": "user", "content": prompt}], api_key)
+    raw, model = groq_chat([{"role": "user", "content": prompt}], api_key)
     by_name = {x.get("name"): x for x in json.loads(raw).get("repos", [])}
     for r in repos:
         got = by_name.get(r["name"], {})
         r["eli5"] = got.get("eli5") or r["description"] or "No description available."
         r["category"] = got.get("category", "")
-    return repos
+    return model
 
 
 def render_text(repos):
@@ -160,34 +161,50 @@ def main():
 
     since = os.getenv("SINCE", "daily")
     top_n = int(os.getenv("TOP_N", "10"))
+    mode = "dry-run" if args.dry_run else "email"
+    stage, model, repos = "scrape", "", []
 
-    repos = scrape_trending(since, top_n)
-    print(f"Scraped {len(repos)} trending repos ({since})")
+    try:
+        repos = scrape_trending(since, top_n)
+        print(f"Scraped {len(repos)} trending repos ({since})")
 
-    if args.no_llm:
-        for r in repos:
-            r["eli5"], r["category"] = r["description"] or "No description available.", ""
-    else:
-        key = os.getenv("GROQ_API_KEY")
-        if not key:
-            sys.exit("GROQ_API_KEY is not set (use --no-llm for an offline test)")
-        explain(repos, key)
-        print("Explanations generated")
+        stage = "explain"
+        if args.no_llm:
+            for r in repos:
+                r["eli5"], r["category"] = r["description"] or "No description available.", ""
+        else:
+            key = os.getenv("GROQ_API_KEY")
+            if not key:
+                raise RuntimeError("GROQ_API_KEY is not set (use --no-llm for an offline test)")
+            model = explain(repos, key)
+            print(f"Explanations generated with {model}")
 
-    html_body, text_body = render_html(repos, since), render_text(repos)
-    subject = f"GitHub Trending · {datetime.now(timezone.utc):%d %b} · {repos[0]['name']} and {len(repos) - 1} more"
+        stage = "render"
+        html_body, text_body = render_html(repos, since), render_text(repos)
+        subject = f"GitHub Trending · {datetime.now(timezone.utc):%d %b} · {repos[0]['name']} and {len(repos) - 1} more"
+        os.makedirs(args.out, exist_ok=True)
+        with open(os.path.join(args.out, "digest.html"), "w", encoding="utf-8") as f:
+            f.write(html_body)
+        with open(os.path.join(args.out, "digest.json"), "w", encoding="utf-8") as f:
+            json.dump([{k: v for k, v in r.items() if k != "readme"} for r in repos], f, indent=2, ensure_ascii=False)
 
-    os.makedirs(args.out, exist_ok=True)
-    with open(os.path.join(args.out, "digest.html"), "w", encoding="utf-8") as f:
-        f.write(html_body)
-    with open(os.path.join(args.out, "digest.json"), "w", encoding="utf-8") as f:
-        json.dump([{k: v for k, v in r.items() if k != "readme"} for r in repos], f, indent=2, ensure_ascii=False)
+        stage = "send"
+        if args.dry_run:
+            print(f"Dry run: wrote {args.out}/digest.html, no email sent")
+            print(text_body)
+            note = "no email sent"
+        else:
+            note = f"sent to {send_email(subject, html_body, text_body)}"
+            print(f"Email {note}")
+            run_log.mark_sent()
 
-    if args.dry_run:
-        print(f"Dry run: wrote {args.out}/digest.html, no email sent")
-        print(text_body)
-    else:
-        print(f"Email sent to {send_email(subject, html_body, text_body)}")
+        print(f"History: {run_log.write_history(repos, since, mode, model)}")
+        run_log.append_run("ok", mode, model, repos, note)
+    except Exception as exc:
+        path = run_log.write_error(exc, mode, stage)
+        run_log.append_run("error", mode, model, repos, f"{stage}: {type(exc).__name__}: {exc}")
+        print(f"FAILED at {stage}; details in {path}", file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":

@@ -1,37 +1,106 @@
 name: Trending digest
 
 on:
+  # Target 02:30 UTC = 08:00 IST. Free-runner schedules run late or get dropped
+  # (seen in ml-research-pulse), so backup slots fire later and the guard makes
+  # sure only the first one that lands sends. A slot after a failed run retries.
   schedule:
-    - cron: "30 2 * * *"   # 02:30 UTC = 08:00 IST, every day
-  workflow_dispatch:        # "Run workflow" button for manual tests
+    - cron: "30 2 * * *"   # 08:00 IST  <- the one we want
+    - cron: "30 3 * * *"   # 09:00 IST
+    - cron: "30 5 * * *"   # 11:00 IST
+    - cron: "30 8 * * *"   # 14:00 IST  last-chance backstop
+  workflow_dispatch:
     inputs:
       dry_run:
         description: "Dry run (no email, HTML saved as artifact)"
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
+concurrency:
+  group: digest
+  cancel-in-progress: false
+
+env:
+  # Commits authored with your GitHub noreply email count on your contribution
+  # graph. Commits by github-actions[bot] would not.
+  COMMIT_NAME: dev2180
+  COMMIT_EMAIL: 110961272+dev2180@users.noreply.github.com
+
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Guard (already sent today?)
+        id: guard
+        run: |
+          TODAY="$(date -u +%F)"
+          LAST="$(python3 -c "import json,os;p='logs/state.json';print(json.load(open(p)).get('last_sent','') if os.path.exists(p) else '')")"
+          echo "event=${{ github.event_name }} today=$TODAY last_sent=$LAST"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$LAST" = "$TODAY" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "Already sent today; this slot does nothing."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build image
+        if: steps.guard.outputs.run == 'true'
         run: docker build -t trending-digest .
+
       - name: Run digest
+        if: steps.guard.outputs.run == 'true'
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          mkdir -p out
-          docker run --rm -v "$PWD/out:/app/out" \
-            -e GROQ_API_KEY -e GMAIL_ADDRESS -e GMAIL_APP_PASSWORD -e EMAIL_TO -e GITHUB_TOKEN \
+          mkdir -p out logs errors
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD/out:/app/out" -v "$PWD/logs:/app/logs" -v "$PWD/errors:/app/errors" \
+            -e LOG_DIR=/app/logs -e ERROR_DIR=/app/errors \
+            -e GROQ_API_KEY -e GMAIL_ADDRESS -e GMAIL_APP_PASSWORD -e EMAIL_TO -e GITHUB_TOKEN -e GITHUB_RUN_URL \
             trending-digest ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Record workflow failure
+        # Covers failures before Python could log (e.g. the image failed to build).
+        if: failure() && steps.guard.outputs.run == 'true'
+        run: |
+          if [ -z "$(git status --porcelain errors)" ]; then
+            D="errors/$(date -u +%Y)/$(date -u +%m)"; mkdir -p "$D"
+            F="$D/$(date -u +%F_%H%M%S)-workflow.log"
+            {
+              echo "time_utc: $(date -u +%FT%TZ)"
+              echo "stage: workflow (before the digest could log)"
+              echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            } > "$F"
+            [ -f logs/runs.csv ] || echo "date,time_utc,status,mode,model,repos,top_repo,note" > logs/runs.csv
+            echo "$(date -u +%F),$(date -u +%T),error,workflow,,0,,see $F" >> logs/runs.csv
+          fi
+
+      - name: Commit history
+        if: always() && steps.guard.outputs.run == 'true'
+        run: |
+          git config user.name  "$COMMIT_NAME"
+          git config user.email "$COMMIT_EMAIL"
+          git add logs errors
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."; exit 0
+          fi
+          STATUS=ok; [ -n "$(git diff --staged --name-only -- errors)" ] && STATUS=error
+          git commit -m "log: $(date -u +%F) digest $STATUS"
+          git pull --rebase --autostash origin main || true
+          git push origin HEAD:main
+
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.guard.outputs.run == 'true'
         with:
           name: digest
           path: out/
