@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-24",
+  "since": "daily",
+  "mode": "email",
+  "model": "openai/gpt-oss-120b",
+  "repos": [
+    {
+      "name": "cloudflare/security-audit-skill",
+      "url": "https://github.com/cloudflare/security-audit-skill",
+      "description": "A coding-agent skill for multi-phase security audits with independently verified, machine-readable findings",
+      "language": "JavaScript",
+      "stars": 42651,
+      "forks": 2662,
+      "gained": "2,716 stars today",
+      "gained_n": 2716,
+      "lang_color": "#f1e05a",
+      "eli5": "It’s like a detective robot that checks a computer system for hidden problems step by step, and then writes a clear report for the owners.",
+      "category": "dev tool"
+    },
+    {
+      "name": "php/php-src",
+      "url": "https://github.com/php/php-src",
+      "description": "The PHP Interpreter",
+      "language": "C",
+      "stars": 41609,
+      "forks": 8365,
+      "gained": "716 stars today",
+      "gained_n": 716,
+      "lang_color": "#555555",
+      "eli5": "It’s the engine that runs PHP code, like the motor that makes a toy car move, and web developers use it to build websites.",
+      "category": "runtime"
+    },
+    {
+      "name": "anthropics/knowledge-work-plugins",
+      "url": "https://github.com/anthropics/knowledge-work-plugins",
+      "description": "Open source repository of plugins primarily intended for knowledge workers to use in Claude Cowork",
+      "language": "Python",
+      "stars": 32389,
+      "forks": 3580,
+      "gained": "635 stars today",
+      "gained_n": 635,
+      "lang_color": "#3572A5",
+      "eli5": "These are add‑ons that turn an AI assistant into a specialist for different jobs, like giving a robot a toolbox for each trade, and office workers use them to get help with their tasks.",
+      "category": "ai plugin"
+    },
+    {
+      "name": "NVIDIA/OpenShell",
+      "url": "https://github.com/NVIDIA/OpenShell",
+      "description": "OpenShell is the safe, private runtime for autonomous AI agents.",
+      "language": "Rust",
+      "stars": 18980,
+      "forks": 1897,
+      "gained": "1,119 stars today",
+      "gained_n": 1119,
+      "lang_color": "#dea584",
+      "eli5": "It’s a safety fence that lets smart programs do things on a computer while keeping your files and passwords locked away, like a playground with a guard who only lets kids play on approved equipment.",
+      "category": "security runtime"
+    },
+    {
+      "name": "Renhuai123/ziwei-doushu",
+      "url": "https://github.com/Renhuai123/ziwei-doushu",
+      "description": "紫微斗数开源排盘引擎 — 基于倪海厦《天纪》体系，含完整排盘算法、四化系统、格局知识库、古籍原文数据",
+      "language": "TypeScript",
+      "stars": 7069,
+      "forks": 1439,
+      "gained": "546 stars today",
+      "gained_n": 546,
+      "lang_color": "#3178c6",
+      "eli5": "It’s a computer program that draws a Chinese astrology chart and explains it, like a digital fortune‑telling board that friends can use to see their “star map.”",
+      "category": "astrology"
+    },
+    {
+      "name": "SnailSploit/Claude-Red",
+      "url": "https://github.com/SnailSploit/Claude-Red",
+      "description": "claude-red is a curated library of offensive security skills designed for the Claude skills system. Each skill is a structured SKILL.md file that primes Claude with expert-level methodology for a specific attack surface — from SQLi to shellcode, EDR evasion to exploit development.",
+      "language": "Python",
+      "stars": 8666,
+      "forks": 1113,
+      "gained": "226 stars today",
+      "gained_n": 226,
+      "lang_color": "#3572A5",
+      "eli5": "It gives an AI a cheat‑sheet for hacking tricks, so the AI can act like a pretend hacker in training, and security researchers use it to practice defenses.",
+      "category": "red team"
+    },
+    {
+      "name": "OpenBMB/VoxCPM",
+      "url": "https://github.com/OpenBMB/VoxCPM",
+      "description": "VoxCPM2: Tokenizer-Free TTS for Multilingual Speech Generation, Creative Voice Design, and True-to-Life Cloning",
+      "language": "Python",
+      "stars": 40393,
+      "forks": 4590,
+      "gained": "150 stars today",
+      "gained_n": 150,
+      "lang_color": "#3572A5",
+      "eli5": "It’s a voice‑making machine that can read any text in many languages with a natural sounding voice, like a magical storyteller that can sound like anyone you want.",
+      "category": "tts"
+    },
+    {
+      "name": "nodejs/node",
+      "url": "https://github.com/nodejs/node",
+      "description": "Node.js JavaScript runtime ✨🐢🚀✨",
+      "language": "JavaScript",
+      "stars": 122978,
+      "forks": 39841,
+      "gained": "66 stars today",
+      "gained_n": 66,
+      "lang_color": "#f1e05a",
+      "eli5": "It’s a kitchen that lets you bake JavaScript programs to run on any computer, and developers use it to build all kinds of web apps and tools.",
+      "category": "runtime"
+    }
+  ]
+}
