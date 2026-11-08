@@ -24,3 +24,4 @@ date,time_utc,status,mode,model,repos,top_repo,note
 2026-11-05,09:45:37,ok,email,openai/gpt-oss-120b,10,NVIDIA/auto-ontology,email sent
 2026-11-06,09:43:10,ok,email,openai/gpt-oss-120b,10,NVIDIA/auto-ontology,email sent
 2026-11-07,09:05:56,ok,email,openai/gpt-oss-120b,10,zed-industries/zed,email sent
+2026-11-08,09:22:58,error,email,,0,,scrape: HTTPError: 504 Server Error: Gateway Time-out for url: https://github.com/trending?since=daily
