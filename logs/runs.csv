@@ -34,3 +34,4 @@ date,time_utc,status,mode,model,repos,top_repo,note
 2026-11-14,09:16:38,ok,email,openai/gpt-oss-120b,10,alibaba/open-code-review,email sent
 2026-11-15,09:47:14,ok,email,openai/gpt-oss-120b,10,backnotprop/plannotator,email sent
 2026-11-16,10:04:17,ok,email,openai/gpt-oss-120b,10,dream-num/univer,email sent
+2026-11-17,10:59:53,ok,email,openai/gpt-oss-120b,10,elementalsouls/Claude-BugHunter,email sent
